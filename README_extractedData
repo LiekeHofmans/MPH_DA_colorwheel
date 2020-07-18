@@ -1,0 +1,135 @@
+---
+title: "ReadMe_extracted_data"
+author: "Lieke Hofmans"
+date: "7/16/2020"
+output: pdf_document
+---
+
+## Contents
+Summary trial- and subject-level data files. 
+
+Note that 100 participants were included in a larger study, while 50 completed the color wheel/choice task analyzed in this study. Participant numbers 1:25 and 51:75 were used in this study, while other numbers completed different experimental tasks. 
+
+
+**allDepVars_wide_drug.csv**
+All dependent variables in wide format per drug session. 
+columns: 
+    1 - subject number
+    2-361 - deviance and RT from the color wheel task, proportion redo choices, indifference point, slope from indifference curve and RT from the choice task: total score, score per drug session, per task type (ignore or update), per set size, and per combination of those conditions. 
+    362-364 - drug on each session
+    365-367 - session number for each drug
+    368-370 - difference in session number (e.g. MPH_PBO = MPH session number minus PBO session number)
+    371 - was the PBO session before the MPH session? (1 = yes)
+    372 - was the PBO session before the SUL session? (1 = yes)
+    373 - was the SUL session before the MPH session? (1 = yes)
+    374-377 - average ki value within a region of interest: whole striatum, whole putamen, whole caudate nucleus, ventral striatum
+    378-381 - average ki value within a region of interest: whole striatum, whole putamen, whole caudate nucleus, ventral striatum, mean centered across participants.
+    33 - days between MPH and pet session
+    34 - days between sul and pet session
+
+**behavioral_measures_for_voxelwise_PET.csv**
+Covariates as input for voxelwise pet analyses: covariates will be correlated with voxelwise ki value for each participant.
+columns: 
+    1 - subject number
+    2-32 - proportion redo choices, indifference point, RT on the choice task, deviance on the color wheel task, RT on the choice task across sessios, per drug session and for the difference between drug sessions. 
+    33 - days between MPH and pet session
+    34 - days between sul and pet session
+
+
+**medical_mood_physiological.csv**
+contains data about the medical and mood questionnaires (VAS/PANAS) and physiological data (heart rate, ear temp, diastolic and systolic blood pressure) that was taken three times per drug session. 
+Columns: 
+    1 - subject number
+	2-91 - systolic blood pressure, diastolic blood pressure, heart rate, ear temperature, PANAS Negative/ positive symptoms, Visual analogue scale calmness, contentedness, and alertness, and medical symptoms for time points 1, 2, and 3 in a drug session
+
+
+**session_diff.csv**
+Contains drug manipulation info per subject
+columns:
+    1 - subject sumber
+    2-4 - drug on each session
+    5-7 - session number for each drug
+    8-10 - difference in session number (e.g. MPH_PBO = MPH session number minus PBO session number)
+    11 - was the PBO session before the MPH session? (1 = yes)
+    12 - was the PBO session before the SUL session? (1 = yes)
+    13 - was the SUL session before the MPH session? (1 = yes)
+    
+**VICIparticipantsInfo_CW.csv**
+Contains subject-specific data 
+Columns:
+    1 - subject number
+    2 - sex (2 = Female)
+    3 - age
+    4 - BMI
+    5 - weight (kg)
+    6 - length (cm)
+    7 - Beck's depression inventory
+    8 - Barratt's impulsivity scale, version 11A (total score)
+    9 - Barratt's impulsivity scale, version 11 (total score; converted from version 11A)
+    10 - behavioral inhihibition/activation scale (total score)
+    11 - behavioral inhihibition/activation scale (inhibition subscore)
+    12 - behavioral inhihibition/activation scale (reward sensitivity subscore)
+    13 - behavioral inhihibition/activation scale (drive subscore)
+    14 - behavioral inhihibition/activation scale (fun seeking subscore)
+    15 - KDOCS creativity questionnaire (total score)
+    16 - KDOCS creativity questionnaire (everyday subscore)
+    17 - KDOCS creativity questionnaire (scolarly subscore)
+    18 - KDOCS creativity questionnaire (performance subscore)
+    19 - KDOCS creativity questionnaire (scientific subscore)
+    20 - KDOCS creativity questionnaire (artistic subscore)
+    21 - Need for cognition score
+    22 - Ravens matrices test score (part of Wechsler adult intelligence scale)
+    23 - Dutch adult reading test
+    24 - listening span: multiplechoice question score
+    25 - listening span: span
+    26 - listening span: number of words recalled in the correct order
+    27 - listening span: number of words recalled independent of order
+    28 - Digit span, forward and backward combined, day 1
+    29 - Digit span, forward, day 1
+    30 - Digit span, backward, day 1
+    31 - Digit span, forward, day 2
+    32 - Digit span, backward, day 2
+    33 - Digit span, forward, day 1 and 2 combined
+    34 - Digit span, backward, day 1 and 2 combined
+    
+
+**Choice folder**
+All choice related information, per subject, per session number, per task type (ignore, update), per set size.
+Includes betas (slope of indifference curve), indifference points, proportion redo choices and RT on the choice task. 
+The folder graphs_IP contains all indifference slopes for each participant on each session for each condition (ignore, update)
+choice_data_long_format.csv includes all task output on trial-level:
+columns: 
+    1 - subject number
+    2 - session number (1-3)
+    3 - trial number (1-288)
+    4 - block number (1-3)
+    5 - condition (0 = ignore, 2 = update)
+    6 - set size (1-4)
+    7 - offer for the hard option (task)
+    8 - offer for the easy option (no redo)
+    9 - screen location of the easy option (1 = left, 2 = right)
+    10 - choice made (9 = missing value, 1 = no redo, 2 = task)
+    11 - reaction time in seconds
+	
+**color_wheel folder**
+All color wheel task related information, per subject, per session number, per task type (ignore, update), per set size.
+Includes median deviance (absolute value) and median RT. 
+CWdata_long_format.csv includes all task output on trial-level:
+columns: 
+    1 - subject number
+    2 - session number (1-3)
+    3 - trial number (1-128)
+    4 - block number (1-3)
+    5 - deviance from the correct color in degrees (absolute value)
+    6 - deviance from the correct color in degrees (raw/signed value)
+    7 - reaction time in seconds
+    8 - set size (1-4)
+    9 - task type (0 = ignore, 2 = update)
+    10 - deviance from the lure color (= same location as target, but wrong encoding/interference phase)
+    11 - color number of the probe (1-12, starting with reddish color)
+    12 - orientation of the color wheel
+    13 - location of the probe (1 = upper left, 2 = pper right, 3 = lower right, 4 = lower left)
+
+**pet folder**
+Contains all output from the voxel wise pet analysis. Each folder contains output from a separate covariate analysis.
+significant_voxels_FWEc_SVC_z3.csv contains a table with all significant clusters (peak voxel location) per covariate.
