@@ -1,0 +1,1042 @@
+---
+title: "VICI_Figures"
+author: "Lieke Hofmans"
+date: "2019 M02 28"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+<style type="text/css">
+
+.figure {
+   margin-top: 100px;
+   margin-bottom: 100px;
+}
+
+</style>
+
+
+```{r, echo=FALSE, include = FALSE}
+
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width = 12, fig.height = 8, dpi = 300)
+
+```
+
+
+
+
+set up
+
+```{r}
+# run script that loads data and combines datasets
+source("set_up.R")
+source("raincloud_plots.R")
+
+allDepVars_wide_drug$wholeStriatum <- as.numeric(allDepVars_wide_drug$wholeStriatum)
+allDepVars_wide_drug$wholePutamen <- as.numeric(allDepVars_wide_drug$wholePutamen)
+allDepVars_wide_drug$wholeCaudate <- as.numeric(allDepVars_wide_drug$wholeCaudate)
+allDepVars_wide_drug$VS <- as.numeric(allDepVars_wide_drug$VS)
+
+figure_folder <- "P:/3017048.01/code/analysis/beh/CW/figures_manuscript"
+
+library(gridExtra)
+```
+
+
+Histogram Ki (mask)
+
+```{r, fig.height=8, fig.width=10}
+# Ki VALUES
+# ________________________________________________________________________________________________________________________________
+
+mask <- data.frame(Kis[Kis[,"ROI"]=='group_mask_z3' & Kis[,"subject"] %in% c(1:25, 51:75), "meanRoiContrastEstimate"])
+colnames(mask) <- "ki"
+
+ggplot(data=mask, aes(ki)) + 
+  geom_histogram(binwidth = 0.0002) +
+  theme_classic(base_size = 33) +
+  xlab(bquote('mean influx constant ('~K[i]~'value)'))
+ggsave(filename = "histogram_ki.eps", path = figure_folder,dpi = 1000)
+
+
+```
+
+
+
+
+color wheel task
+
+I make a plot that shows set size on the x-axis and median deviance/RT on the y-axis, split for condition, across participants
+
+
+```{r, fig.height=8, fig.width=8}
+
+# deviance
+#_________________________________________________________________________________________________________
+
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  gather("deviance_I_ss1", "deviance_I_ss2",	"deviance_I_ss3",	"deviance_I_ss4", "deviance_U_ss1", "deviance_U_ss2","deviance_U_ss3","deviance_U_ss4", key = "options", value = "deviance") %>% 
+  separate(options, into = c("condition", "set_size"), sep = "_ss")
+
+summ <- summarySE(temp, measurevar="deviance", groupvars=c("set_size","condition")) # summarize data to retrieve mean and SE (use function called at top of document)
+
+ggplot(data = summ, aes(x = as.numeric(set_size), y = deviance, color = condition)) +
+  geom_point(data = temp, size=2, alpha=0.3, position=position_jitterdodge(jitter.width = 0.1, jitter.height=0.01, dodge.width=0.4)) +
+  geom_line(size=2) +
+  geom_point(size=4) +
+  geom_errorbar(aes(ymin=deviance-ci, ymax=deviance+ci), width=.05, size=1, color = "black") +  
+  coord_cartesian(ylim = c(0, 25)) + 
+  theme_classic(base_size = 24) +
+  scale_color_manual(labels=c("ignore", "update"),name="task-type",values = c('black',"darkgrey" )) + 
+  ylab("median absolute deviance\n(degrees)") + 
+  xlab("set-size") 
+
+ggsave(filename = "deviance.eps", path = figure_folder,dpi = 1000)
+
+   
+# RT
+#_________________________________________________________________________________________________________
+
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  gather("RT_I_ss1", "RT_I_ss2",	"RT_I_ss3",	"RT_I_ss4", "RT_U_ss1", "RT_U_ss2","RT_U_ss3","RT_U_ss4", key = "options", value = "RT") %>% 
+  separate(options, into = c("condition", "set_size"), sep = "_ss")
+
+summ <- summarySE(temp, measurevar="RT", groupvars=c("set_size","condition")) # summarize data (use function called at top of document)
+
+ggplot(data = summ, aes(x = as.numeric(set_size), y = RT, color = condition)) +
+  geom_point(data = temp, size=2, alpha=0.3, position=position_jitterdodge(jitter.width = 0.1, jitter.height=0.01, dodge.width=0.4)) +
+  geom_line(size=2) +
+  geom_point(size=4) +
+  geom_errorbar(aes(ymin=RT-ci, ymax=RT+ci), width=.05, size=1, color = "black") +  
+  coord_cartesian(ylim = c(1, 3)) + 
+  theme_classic(base_size = 24) +
+  scale_color_manual(labels=c("ignore", "update"),name="task-type",values = c('black',"darkgrey" )) + 
+  ylab("median response time\n(seconds)") + 
+  xlab("set-size") 
+
+ggsave(filename = "RT.eps", path = figure_folder,dpi = 1000)
+
+
+
+```
+
+
+
+
+
+Choice task
+
+
+Effect set size and task type
+
+
+```{r, fig.height=8, fig.width=8}
+
+
+# RATIO REDO
+# ======================================================================================================================================================================================================================================
+
+# AS A FUNCTION OF SET SIZE AND TASK TYPE
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  gather("ratioRedo_I_ss1", "ratioRedo_I_ss2",	"ratioRedo_I_ss3",	"ratioRedo_I_ss4", "ratioRedo_U_ss1", "ratioRedo_U_ss2","ratioRedo_U_ss3","ratioRedo_U_ss4", key = "options", value = "ratioRedo") %>% 
+  separate(options, into = c("condition", "set_size"), sep = "_ss")
+summ <- summarySE(temp, measurevar="ratioRedo", groupvars=c("set_size","condition")) # summarize data (use function called at top of document)
+
+ggplot(data = summ, aes(x = as.numeric(set_size), y = ratioRedo, color = condition)) +
+  geom_point(data = temp, size=2, alpha=0.3, position=position_jitterdodge(jitter.width = 0.1, jitter.height=0.01, dodge.width=0.4)) +
+  geom_line(size=2) +
+  geom_point(size=4) +
+  geom_errorbar(aes(ymin=ratioRedo-ci, ymax=ratioRedo+ci), width=.05, size=1, color="black") +
+  coord_cartesian(ylim = c(0, 1)) + 
+  scale_color_manual(labels=c("ignore", "update"),name="task-type",values = c('black',"darkgrey" )) + 
+  theme_classic(base_size = 24) +
+  ylab("proportion redo choices") + 
+  xlab("set-size")
+
+ggsave(filename = "redo_tasktype_setsize.eps", path = figure_folder,dpi = 1000)
+
+# AS A FUNCTION OF SET SIZE
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  gather("ratioRedo_ss1", "ratioRedo_ss2",	"ratioRedo_ss3",	"ratioRedo_ss4", key = "set_size", value = "ratioRedo") 
+temp[,"set_size"] <- as.numeric(sub("ratioRedo_ss", "", temp[,"set_size"])) 
+
+summ <- summarySE(temp, measurevar="ratioRedo", groupvars=c("set_size")) # summarize data (use function called at top of document)
+
+ggplot(data = summ, aes(x = as.numeric(set_size), y = ratioRedo)) +
+  geom_jitter(data = temp, size=2, alpha=0.3, width = 0.1, height = 0.01) +
+  geom_line(size=2) +
+  geom_point(size=4, alpha = 1) +
+  geom_errorbar(aes(ymin=ratioRedo-ci, ymax=ratioRedo+ci), width=.05, size=1, color="black") +
+  coord_cartesian(ylim = c(0, 1)) + 
+  theme_classic(base_size = 24) +
+  ylab("proportion redo choices") + 
+  xlab("set-size")
+
+ggsave(filename = "redo_setsize.eps", path = figure_folder,dpi = 1000)
+
+
+
+```
+
+
+```{r, fig.height=8, fig.width=6}
+
+
+# RATIO REDO
+# ======================================================================================================================================================================================================================================
+
+
+# AS A FUNCTION OF DRUG
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  dplyr::select("sID","ratioRedo_MPH", "ratioRedo_SUL",	"ratioRedo_PBO") %>%
+  gather("ratioRedo_MPH", "ratioRedo_SUL",	"ratioRedo_PBO",	key = "drug", value = "ratioRedo") 
+temp[,"drug"] <- sub("ratioRedo_", "", temp[,"drug"])
+temp$drug <- as.numeric(ifelse(temp$drug=="PBO", 1, ifelse(temp$drug=="MPH",2,3)))
+
+
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  dplyr::select("sID","ratioRedo_MPH", "ratioRedo_SUL",	"ratioRedo_PBO")
+
+temp$MPH_effect <- temp$ratioRedo_MPH - temp$ratioRedo_PBO
+temp$SUL_effect <- temp$ratioRedo_SUL - temp$ratioRedo_PBO
+temp <- temp %>%
+  dplyr::select("sID","MPH_effect", "SUL_effect")%>%
+  gather("MPH_effect", "SUL_effect",	key = "drug", value = "ratioRedo") 
+temp[,"drug"] <- sub("_effect", "", temp[,"drug"]) 
+summ <- summarySE(temp, measurevar="ratioRedo", groupvars=c("drug")) # summarize data (use function called at top of document)
+ 
+
+ggplot(data = summ, aes(x = drug, y = ratioRedo)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "darkgrey") +
+  geom_jitter(data = temp, size=2, alpha=0.15, width = 0.05, height = 0.01) +
+  geom_point(size=4.5, alpha = 1) +
+  geom_errorbar(aes(ymin=ratioRedo-ci, ymax=ratioRedo+ci), width=.3, size=1.5, color="black") +
+  theme_classic(base_size = 24) +
+  ylab("drug effect on proportion redo choices\ndrug - PBO") 
+
+ggsave(filename = "redo_drug.eps", path = figure_folder,dpi = 1000)
+
+
+# still significant when excluding pp 24?
+df_choice <- df_choice[complete.cases(df_choice$wholePutamen),]
+df_choice$condition_IU <- as.factor(df_choice$condition_IU)
+df_choice$set_size <- as.factor(df_choice$set_size)
+summ <- summarySE(df_choice[df_choice$sID!=24,], measurevar="choice_NR", groupvars=c("sID", "set_size", "condition_IU", "drug", "wholePutamen_mc", "wholeCaudate_mc", "VS_mc"))
+print(ezANOVA(data = summ, dv = .(choice_NR), wid = .(sID), within = .(set_size, condition_IU, drug), between = .(wholePutamen_mc), type = 3)) 
+#DP: maybe add library('ez') so that people know what packages to install/use
+
+
+
+# IP
+# ======================================================================================================================================================================================================================================
+
+
+# AS A FUNCTION OF DRUG
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  dplyr::select("sID","IP_MPH", "IP_SUL",	"IP_PBO") %>%
+  gather("IP_MPH", "IP_SUL",	"IP_PBO",	key = "drug", value = "IP") 
+temp[,"drug"] <- sub("IP_", "", temp[,"drug"])
+temp$drug <- as.numeric(ifelse(temp$drug=="PBO", 1, ifelse(temp$drug=="MPH",2,3)))
+
+
+temp <- allDepVars_wide_drug[complete.cases(allDepVars_wide_drug$wholePutamen),] %>% 
+  dplyr::select("sID","IP_MPH", "IP_SUL",	"IP_PBO")
+
+temp$MPH_effect <- temp$IP_MPH - temp$IP_PBO
+temp$SUL_effect <- temp$IP_SUL - temp$IP_PBO
+temp <- temp %>%
+  dplyr::select("sID","MPH_effect", "SUL_effect")%>%
+  gather("MPH_effect", "SUL_effect",	key = "drug", value = "IP") 
+temp[,"drug"] <- sub("_effect", "", temp[,"drug"]) 
+summ <- summarySE(temp, measurevar="IP", groupvars=c("drug")) # summarize data (use function called at top of document)
+ 
+
+ggplot(data = summ, aes(x = drug, y = IP)) +
+  geom_hline(yintercept=0, linetype="dashed", color = "darkgrey") +
+  geom_jitter(data = temp, size=2, alpha=0.15, width = 0.05, height = 0.01) +
+  geom_point(size=4.5, alpha = 1) +
+  geom_errorbar(aes(ymin=IP-ci, ymax=IP+ci), width=.3, size=1.5, color="black") +
+  theme_classic(base_size = 24) +
+  ylab("drug effect on indifference point\ndrug - PBO") 
+
+ggsave(filename = "IP_drug.eps", path = figure_folder,dpi = 1000)
+
+```
+
+
+
+
+drug effects on ratio redo as a function of Ki ROIs
+
+```{r, fig.height=10, fig.width=8} 
+
+# prepare data
+temp <- allDepVars_wide_drug
+temp$VS_median <- ifelse(temp$VS < median(temp$VS, na.rm = T), "low", "high")
+temp$putamen_median <- ifelse(temp$wholePutamen < median(temp$wholePutamen, na.rm = T), "low", "high")
+temp$caudate_median <- ifelse(temp$wholeCaudate < median(temp$wholeCaudate, na.rm = T), "low", "high")
+temp$MPH_effect_ratioRedo <- temp$ratioRedo_MPH - temp$ratioRedo_PBO
+temp$SUL_effect_ratioRedo <- temp$ratioRedo_SUL - temp$ratioRedo_PBO  
+
+df <- temp[complete.cases(temp$VS_median),] %>% # remove people without ki measure
+  dplyr::select(VS, wholePutamen, wholeCaudate, VS_median, putamen_median, caudate_median, MPH_effect_ratioRedo, SUL_effect_ratioRedo) %>%
+  dplyr::rename(MPH = MPH_effect_ratioRedo, SUL = SUL_effect_ratioRedo) %>%
+  gather(drug, drug_effect, MPH, SUL)
+
+
+
+# correlation plots per ROI
+
+# ratio redo under placebo
+corr_coef <- cor.test(temp$VS, temp$ratioRedo_PBO, method = "pearson", use = "pairwise.complete.obs")
+rvalue_VS <- paste("italic(r) == ", deparse(format(round(as.numeric(corr_coef$estimate), digits = 2), nsmall = 2))) # way too complicated line to just round the value to two digits.
+pvalue_VS <- paste("italic(p) == ", deparse(format(round(corr_coef$p.value, digits = 3), nsmall = 3)))
+PBO_VS <- ggplot(data = temp, aes(x = VS, y = ratioRedo_PBO)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3, color = "black") +
+  theme_classic(base_size = 24) +
+  ylab("proportion redo choices PBO") +
+  xlab("Ki nucleus accumbens") +
+  geom_text(aes (x=0.011555, y = 0.84, label = rvalue_VS, hjust = 0), parse = TRUE, size = 7) +
+  geom_text(aes (x=0.011555, y = 0.785, label = pvalue_VS, hjust = 0), parse = TRUE, size = 7) 
+
+
+corr_coef <- cor.test(temp$wholePutamen, temp$ratioRedo_PBO, method = "pearson", use = "pairwise.complete.obs")
+rvalue_putamen <- paste("italic(r) == ", deparse(format(round(as.numeric(corr_coef$estimate), digits = 2), nsmall = 2)))
+pvalue_putamen <- paste("italic(p) == ", deparse(format(round(corr_coef$p.value, digits = 3), nsmall = 3)))
+PBO_putamen <- ggplot(data = temp, aes(x = wholePutamen, y = ratioRedo_PBO)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3, color = "black") +
+  theme_classic(base_size = 24) +
+  ylab("proportion redo choices PBO") +
+  xlab("Ki putamen") +
+  geom_text(aes (x=0.01283, y = 0.84, label = rvalue_putamen, hjust = 0), parse = TRUE, size = 7) +
+  geom_text(aes (x=0.01283, y = 0.785, label = pvalue_putamen, hjust = 0), parse = TRUE, size = 7) 
+
+
+corr_coef <- cor.test(temp$wholeCaudate, temp$ratioRedo_PBO, method = "pearson", use = "pairwise.complete.obs")
+rvalue_caudate <- paste("italic(r) == ", deparse(format(round(as.numeric(corr_coef$estimate), digits = 2), nsmall = 2)))
+pvalue_caudate <- paste("italic(p) == ", deparse(format(round(corr_coef$p.value, digits = 3), nsmall = 3)))
+PBO_caudate <- ggplot(data = temp, aes(x = wholeCaudate, y = ratioRedo_PBO)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3, color = "black") +
+  theme_classic(base_size = 24) +
+  ylab("proportion redo choices PBO") +
+  xlab("Ki caudate nucleus") +
+  geom_text(aes (x=0.0099, y = 0.84, label = rvalue_caudate, hjust = 0), parse = TRUE, size = 7) +
+  geom_text(aes (x=0.0099, y = 0.785, label = pvalue_caudate, hjust = 0), parse = TRUE, size = 7)
+
+
+# DRUG - PBO
+MPH <- cor.test(df$VS[df$drug=="MPH"], df$drug_effect[df$drug=="MPH"], method = "pearson", use = "pairwise.complete.obs")
+SUL <- cor.test(df$VS[df$drug=="SUL"], df$drug_effect[df$drug=="SUL"], method = "pearson", use = "pairwise.complete.obs")
+rvalues_VS <- c(paste("italic(r) == ", deparse(format(round(as.numeric(MPH$estimate), digits = 2), nsmall = 2))), paste("italic(r) == ", deparse(format(round(as.numeric(SUL$estimate), digits = 2), nsmall = 2))))
+pvalues_VS <- c(paste("italic(p) == ", deparse(format(round(MPH$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL$p.value, digits = 3), nsmall = 3))))
+
+drug_VS <- ggplot(data = df, aes(x = VS, y = drug_effect, color = drug)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3) +
+  theme_classic(base_size = 24) +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) +
+  scale_color_manual(name="", values = c("black", "grey69")) +
+  ylab("proportion redo choices DRUG - PBO") +
+  xlab("Ki nucleus accumbens") +
+  coord_cartesian(ylim = c(-0.2, 0.65)) +
+  annotate("text", x = c(0.01163,0.01408), y = 0.55, label = rvalues_VS, hjust = 0, parse = T, size = 7) +
+  annotate("text", x = c(0.01163,0.01408), y = 0.5, label = pvalues_VS, hjust = 0, parse = T, size = 7) +
+  geom_hline(yintercept=0, linetype="dotted")
+
+
+MPH <- cor.test(df$wholePutamen[df$drug=="MPH"], df$drug_effect[df$drug=="MPH"], method = "pearson", use = "pairwise.complete.obs")
+SUL <- cor.test(df$wholePutamen[df$drug=="SUL"], df$drug_effect[df$drug=="SUL"], method = "pearson", use = "pairwise.complete.obs")
+rvalues_putamen <- c(paste("italic(r) == ", deparse(format(round(as.numeric(MPH$estimate), digits = 2), nsmall = 2))), paste("italic(r) == ", deparse(format(round(as.numeric(SUL$estimate), digits = 2), nsmall = 2))))
+pvalues_putamen <- c(paste("italic(p) == ", deparse(format(round(MPH$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL$p.value, digits = 3), nsmall = 3))))
+
+drug_putamen <- ggplot(data = df, aes(x = wholePutamen, y = drug_effect, color = drug)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3) +
+  theme_classic(base_size = 24) +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) +
+  scale_color_manual(name="", values = c("black", "grey69")) +
+  ylab("proportion redo choices DRUG - PBO") +
+  xlab("Ki putamen") +
+  coord_cartesian(ylim = c(-0.2, 0.65)) +
+  annotate("text", x = c(0.0129,0.0153), y = 0.55, label = rvalues_putamen, hjust = 0, parse = T, size = 7) +
+  annotate("text", x = c(0.0129,0.0153), y = 0.5, label = pvalues_putamen, hjust = 0, parse = T, size = 7) +
+  geom_hline(yintercept=0, linetype="dotted")
+
+
+MPH <- cor.test(df$wholeCaudate[df$drug=="MPH"], df$drug_effect[df$drug=="MPH"], method = "pearson", use = "pairwise.complete.obs")
+SUL <- cor.test(df$wholeCaudate[df$drug=="SUL"], df$drug_effect[df$drug=="SUL"], method = "pearson", use = "pairwise.complete.obs")
+rvalues_caudate <- c(paste("italic(r) == ", deparse(format(round(as.numeric(MPH$estimate), digits = 2), nsmall = 2))), paste("italic(r) == ", deparse(format(round(as.numeric(SUL$estimate), digits = 2), nsmall = 2))))
+pvalues_caudate <- c(paste("italic(p) == ", deparse(format(round(MPH$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL$p.value, digits = 3), nsmall = 3))))
+
+drug_caudate <- ggplot(data = df, aes(x = wholeCaudate, y = drug_effect, color = drug)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3) +
+  theme_classic(base_size = 24) +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) +
+  scale_color_manual(name="", values = c("black", "grey69")) +
+  ylab("proportion redo choices DRUG - PBO") +
+  xlab("Ki caudate nucleus") +
+  coord_cartesian(ylim = c(-0.2, 0.65)) +
+  annotate("text", x = c(0.010,0.0123), y = 0.55, label = rvalues_caudate, hjust = 0, parse = T, size = 7) +
+  annotate("text", x = c(0.010,0.0123), y = 0.5, label = pvalues_caudate, hjust = 0, parse = T, size = 7) +
+  geom_hline(yintercept=0, linetype="dotted")
+    
+
+# also significant without person with largest MPH effect?
+corr <- cor.test(df$VS[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], df$drug_effect[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], method = "pearson", use = "pairwise.complete.obs")
+corr$estimate
+corr$p.value
+corr <- cor.test(df$wholePutamen[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], df$drug_effect[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], method = "pearson", use = "pairwise.complete.obs")
+corr$estimate
+corr$p.value
+corr <- cor.test(df$wholeCaudate[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], df$drug_effect[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], method = "pearson", use = "pairwise.complete.obs")
+corr$estimate
+corr$p.value
+
+# showing drug effect on ratio redo as a function of drug, for each DA level
+
+# first reorder median ki values:
+df$VS_median <- factor(df$VS_median, levels = rev(levels(as.factor(df$VS_median))))
+df$putamen_median <- factor(df$putamen_median, levels = rev(levels(as.factor(df$putamen_median))))
+df$caudate_median <- factor(df$caudate_median, levels = rev(levels(as.factor(df$caudate_median))))
+
+
+
+summ_VS <- summarySE(df, measurevar="drug_effect", groupvars=c("VS_median", "drug"))
+split_VS <- ggplot(data = summ_VS, aes(x = drug, y = drug_effect, fill = VS_median)) +
+  geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+  geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+  geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+  theme_classic(base_size = 24) +
+  scale_fill_manual(name="Ki nucleus accumbens", values = c("black", "white")) +
+  geom_hline(yintercept=0, linetype="dotted")+
+  ylab("proportion redo choices DRUG - PBO")+
+  xlab("") +
+  coord_cartesian(ylim = c(-0.2, 0.65)) + 
+  theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+
+
+
+summ_putamen <- summarySE(df, measurevar="drug_effect", groupvars=c("putamen_median", "drug"))
+split_putamen <- ggplot(data = summ_putamen, aes(x = drug, y = drug_effect, fill = putamen_median)) +
+  geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+  geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+  geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+  theme_classic(base_size = 24) +
+  scale_fill_manual(name="Ki putamen", values = c("black", "white")) +
+  geom_hline(yintercept=0, linetype="dotted")+
+  ylab("proportion redo choices DRUG - PBO")+
+  xlab("") +
+  coord_cartesian(ylim = c(-0.2, 0.65)) + 
+  theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+
+
+
+summ_caudate <- summarySE(df, measurevar="drug_effect", groupvars=c("caudate_median", "drug"))
+split_caudate <- ggplot(data = summ_caudate, aes(x = drug, y = drug_effect, fill = caudate_median)) +
+  geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+  geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+  geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+  theme_classic(base_size = 24) +
+  scale_fill_manual(name="Ki caudate nucleus", values = c("black", "white")) +
+  geom_hline(yintercept=0, linetype="dotted")+
+  ylab("proportion redo choices DRUG - PBO")+
+  xlab("") +
+  coord_cartesian(ylim = c(-0.2, 0.65)) + 
+  theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+
+# combine figures into 1 large plot
+combined <- grid.arrange(PBO_VS, drug_VS, split_VS, PBO_putamen, drug_putamen, split_putamen, PBO_caudate, drug_caudate, split_caudate, ncol = 3)
+
+# save
+ggsave(filename = "ratioRedo_ROI.png", plot = combined, path = figure_folder,dpi = 1000, width = 48, height = 60, units = "cm")
+
+
+
+# OLD BAR GRAPHS FROM BEFORE REVISION
+#
+# MPH_high <- t.test(df$drug_effect[df$VS_median=="high" & df$drug== "MPH"], mu = 0) # first calculate t and p values for drug effect per drug and for high and low DA
+# MPH_low <- t.test(df$drug_effect[df$VS_median=="low" & df$drug== "MPH"], mu = 0)
+# SUL_high <- t.test(df$drug_effect[df$VS_median=="high" & df$drug== "SUL"], mu = 0)
+# SUL_low <- t.test(df$drug_effect[df$VS_median=="low" & df$drug== "SUL"], mu = 0)
+# tvalues_bar_VS <- c(paste("italic(t) == ", deparse(format(round(as.numeric(MPH_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(MPH_high$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_high$statistic), digits = 2), nsmall = 2))))
+# pvalues_bar_VS <- c(paste("italic(p) == ", deparse(format(round(MPH_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(MPH_high$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_high$p.value, digits = 3), nsmall = 3))))
+# 
+# 
+# summ_VS <- summarySE(df, measurevar="drug_effect", groupvars=c("VS_median", "drug"))
+# bar_VS <- ggplot(data = summ_VS, aes(x = drug, y = drug_effect, fill = VS_median)) +
+#   geom_bar(stat="identity", position = position_dodge()) + 
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci),  
+#                 width=.2,                    
+#                 position=position_dodge(.9)) +
+#   theme_classic(base_size = 24) +
+#   ylab("proportion redo choices DRUG - PBO") +
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.09, 0.21)) +
+#   scale_fill_manual(name="Ki nucleus accumbens", values = c("#404788FF", "#3CBB75FF")) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) +
+#   geom_hline(yintercept=0, linetype="dotted") +
+#   geom_text(aes(x=1.22, y = summ_VS$drug_effect[summ_VS$drug=="MPH" & summ_VS$VS_median=="high"]+summ_VS$ci[summ_VS$drug=="MPH" & summ_VS$VS_median=="high"]+0.02, label = "*"), size = 10) +
+#   geom_text(aes (y = -0.07, label = tvalues_bar_VS, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) +
+#   geom_text(aes (y = -0.09, label = pvalues_bar_VS, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) 
+# 
+# 
+# 
+# MPH_high <- t.test(df$drug_effect[df$putamen_median=="high" & df$drug== "MPH"], mu = 0) # first calculate t and p values for drug effect per drug and for high and low DA
+# MPH_low <- t.test(df$drug_effect[df$putamen_median=="low" & df$drug== "MPH"], mu = 0)
+# SUL_high <- t.test(df$drug_effect[df$putamen_median=="high" & df$drug== "SUL"], mu = 0)
+# SUL_low <- t.test(df$drug_effect[df$putamen_median=="low" & df$drug== "SUL"], mu = 0)
+# tvalues_bar_putamen <- c(paste("italic(t) == ", deparse(format(round(as.numeric(MPH_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(MPH_high$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_high$statistic), digits = 2), nsmall = 2))))
+# pvalues_bar_putamen <- c(paste("italic(p) == ", deparse(format(round(MPH_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(MPH_high$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_high$p.value, digits = 3), nsmall = 3))))
+# 
+# summ_putamen <- summarySE(df, measurevar="drug_effect", groupvars=c("putamen_median", "drug"))
+# bar_putamen <- ggplot(data = summ_putamen, aes(x = drug, y = drug_effect, fill = putamen_median)) +
+#   geom_bar(stat="identity", position = position_dodge()) + 
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci),  
+#                 width=.2,                    
+#                 position=position_dodge(.9)) +
+#   theme_classic(base_size = 24) +
+#   ylab("proportion redo choices DRUG - PBO") +
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.09, 0.21)) +
+#   scale_fill_manual(name="Ki putamen", values = c("#404788FF", "#3CBB75FF")) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) +
+#   geom_hline(yintercept=0, linetype="dotted")+
+#   geom_text(aes(x=1.22, y = summ_putamen$drug_effect[summ_putamen$drug=="MPH" & summ_putamen$putamen_median=="high"]+summ_putamen$ci[summ_putamen$drug=="MPH" & summ_putamen$putamen_median=="high"]+0.02, label = "*"), size = 10) +
+#   geom_text(aes (y = -0.07, label = tvalues_bar_putamen, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) +
+#   geom_text(aes (y = -0.09, label = pvalues_bar_putamen, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) 
+# 
+# 
+# 
+# MPH_high <- t.test(df$drug_effect[df$caudate_median=="high" & df$drug== "MPH"], mu = 0) # first calculate t and p values for drug effect per drug and for high and low DA
+# MPH_low <- t.test(df$drug_effect[df$caudate_median=="low" & df$drug== "MPH"], mu = 0)
+# SUL_high <- t.test(df$drug_effect[df$caudate_median=="high" & df$drug== "SUL"], mu = 0)
+# SUL_low <- t.test(df$drug_effect[df$caudate_median=="low" & df$drug== "SUL"], mu = 0)
+# tvalues_bar_caudate <- c(paste("italic(t) == ", deparse(format(round(as.numeric(MPH_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(MPH_high$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_high$statistic), digits = 2), nsmall = 2))))
+# pvalues_bar_caudate <- c(paste("italic(p) == ", deparse(format(round(MPH_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(MPH_high$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_high$p.value, digits = 3), nsmall = 3))))
+# 
+# summ_caudate <- summarySE(df, measurevar="drug_effect", groupvars=c("caudate_median", "drug"))
+# bar_caudate <- ggplot(data = summ_caudate, aes(x = drug, y = drug_effect, fill = caudate_median)) +
+#   geom_bar(stat="identity", position = position_dodge()) + 
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci),  
+#                 width=.2,                    
+#                 position=position_dodge(.9)) +
+#   theme_classic(base_size = 24) +
+#   ylab("proportion redo choices DRUG - PBO") +
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.09, 0.21)) +
+#   scale_fill_manual(name="Ki caudate nucleus", values = c("#404788FF", "#3CBB75FF")) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) +
+#   geom_hline(yintercept=0, linetype="dotted")+
+#   geom_text(aes(x=1.22, y = summ_caudate$drug_effect[summ_caudate$drug=="MPH" & summ_caudate$caudate_median=="high"]+summ_caudate$ci[summ_caudate$drug=="MPH" & summ_caudate$caudate_median=="high"]+0.02, label = "*"), size = 10) +
+#   geom_text(aes (y = -0.07, label = tvalues_bar_caudate, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) +
+#   geom_text(aes (y = -0.09, label = pvalues_bar_caudate, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) 
+# 
+# 
+# 
+# 
+# summ_caudate <- summarySE(df, measurevar="drug_effect", groupvars=c("caudate_median", "drug"))
+# split_caudate <- ggplot(data = summ_caudate, aes(x = drug, y = drug_effect, fill = caudate_median)) +
+#   geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+#   geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+#   theme_classic(base_size = 24) +
+#   # scale_color_manual(name="", values = c("black", "grey69")) +
+#   scale_fill_manual(name="Ki caudate nucleus", values = c("black", "white")) +
+#   geom_hline(yintercept=0, linetype="dotted")+
+#   ylab("proportion redo choices DRUG - PBO")+
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.2, 0.65)) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+  
+
+
+
+```
+
+
+
+drug effects on RTchoice as a function of Ki ROIs
+
+```{r, fig.height=10, fig.width=8} 
+
+# prepare data
+temp <- allDepVars_wide_drug
+temp$VS_median <- ifelse(temp$VS < median(temp$VS, na.rm = T), "low", "high")
+temp$putamen_median <- ifelse(temp$wholePutamen < median(temp$wholePutamen, na.rm = T), "low", "high")
+temp$caudate_median <- ifelse(temp$wholeCaudate < median(temp$wholeCaudate, na.rm = T), "low", "high")
+temp$MPH_effect_RTchoice <- temp$RTchoice_MPH - temp$RTchoice_PBO
+temp$SUL_effect_RTchoice <- temp$RTchoice_SUL - temp$RTchoice_PBO  
+
+df <- temp[!is.na(temp$VS_median),] %>% # remove people without ki measure
+  dplyr::select(VS, wholePutamen, wholeCaudate, VS_median, putamen_median, caudate_median, MPH_effect_RTchoice, SUL_effect_RTchoice) %>%
+  dplyr::rename(MPH = MPH_effect_RTchoice, SUL = SUL_effect_RTchoice) %>%
+  gather(drug, drug_effect, MPH, SUL)
+
+
+
+
+
+# correlation plots
+
+# ratio redo under placebo
+corr_coef <- cor.test(temp$VS, temp$RTchoice_PBO, method = "pearson", use = "pairwise.complete.obs")
+rvalue_VS <- paste("italic(r) == ", deparse(format(round(as.numeric(corr_coef$estimate), digits = 2), nsmall = 2)))
+pvalue_VS <- paste("italic(p) == ", deparse(format(round(corr_coef$p.value, digits = 3), nsmall = 3)))
+PBO_VS <- ggplot(data = temp, aes(x = VS, y = RTchoice_PBO)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3, color = "black") +
+  theme_classic(base_size = 24) +
+  ylab("choice latency PBO (sec)") +
+  xlab("Ki nucleus accumbens") +
+  geom_text(aes (x=0.011555, y = 2.18, label = rvalue_VS, hjust = 0), parse = TRUE, size = 7) +
+  geom_text(aes (x=0.011555, y = 2.08, label = pvalue_VS, hjust = 0), parse = TRUE, size = 7) 
+
+
+corr_coef <- cor.test(temp$wholePutamen, temp$RTchoice_PBO, method = "pearson", use = "pairwise.complete.obs")
+rvalue_putamen <- paste("italic(r) == ", deparse(format(round(as.numeric(corr_coef$estimate), digits = 2), nsmall = 2)))
+pvalue_putamen <- paste("italic(p) == ", deparse(format(round(corr_coef$p.value, digits = 3), nsmall = 3)))
+PBO_putamen <- ggplot(data = temp, aes(x = wholePutamen, y = RTchoice_PBO)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3, color = "black") +
+  theme_classic(base_size = 24) +
+  ylab("choice latency PBO (sec)") +
+  xlab("Ki putamen") +
+  geom_text(aes (x=0.01283, y = 2.18, label = rvalue_putamen, hjust = 0), parse = TRUE, size = 7) +
+  geom_text(aes (x=0.01283, y = 2.08, label = pvalue_putamen, hjust = 0), parse = TRUE, size = 7) 
+
+
+corr_coef <- cor.test(temp$wholeCaudate, temp$RTchoice_PBO, method = "pearson", use = "pairwise.complete.obs")
+rvalue_caudate <- paste("italic(r) == ", deparse(format(round(as.numeric(corr_coef$estimate), digits = 2), nsmall = 2)))
+pvalue_caudate <- paste("italic(p) == ", deparse(format(round(corr_coef$p.value, digits = 3), nsmall = 3)))
+PBO_caudate <- ggplot(data = temp, aes(x = wholeCaudate, y = RTchoice_PBO)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3, color = "black") +
+  theme_classic(base_size = 24) +
+  ylab("choice latency PBO (sec)") +
+  xlab("Ki caudate nucleus") +
+  geom_text(aes (x=0.0099, y = 2.18, label = rvalue_caudate, hjust = 0), parse = TRUE, size = 7) +
+  geom_text(aes (x=0.0099, y = 2.08, label = pvalue_caudate, hjust = 0), parse = TRUE, size = 7)
+
+
+
+
+# DRUG - PBO
+MPH <- cor.test(df$VS[df$drug=="MPH"], df$drug_effect[df$drug=="MPH"], method = "pearson", use = "pairwise.complete.obs")
+SUL <- cor.test(df$VS[df$drug=="SUL"], df$drug_effect[df$drug=="SUL"], method = "pearson", use = "pairwise.complete.obs")
+rvalues_VS <- c(paste("italic(r) == ", deparse(format(round(as.numeric(MPH$estimate), digits = 2), nsmall = 2))), paste("italic(r) == ", deparse(format(round(as.numeric(SUL$estimate), digits = 2), nsmall = 2))))
+pvalues_VS <- c(paste("italic(p) == ", deparse(format(round(MPH$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL$p.value, digits = 3), nsmall = 3))))
+
+drug_VS <- ggplot(data = df, aes(x = VS, y = drug_effect, color = drug)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3) +
+  theme_classic(base_size = 24) +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) +
+  scale_color_manual(name="", values = c("black", "grey69")) +
+  ylab("choice latency DRUG - PBO (sec)") +
+  xlab("Ki nucleus accumbens") +
+  coord_cartesian(ylim = c(-0.5, 1.2)) +
+  annotate("text", x = c(0.01163,0.01408), y = 1, label = rvalues_VS, hjust = 0, parse = T, size = 7) +
+  annotate("text", x = c(0.01163,0.01408), y = 0.895, label = pvalues_VS, hjust = 0, parse = T, size = 7) +
+  geom_hline(yintercept=0, linetype="dotted")
+
+
+MPH <- cor.test(df$wholePutamen[df$drug=="MPH"], df$drug_effect[df$drug=="MPH"], method = "pearson", use = "pairwise.complete.obs")
+SUL <- cor.test(df$wholePutamen[df$drug=="SUL"], df$drug_effect[df$drug=="SUL"], method = "pearson", use = "pairwise.complete.obs")
+rvalues_putamen <- c(paste("italic(r) == ", deparse(format(round(as.numeric(MPH$estimate), digits = 2), nsmall = 2))), paste("italic(r) == ", deparse(format(round(as.numeric(SUL$estimate), digits = 2), nsmall = 2))))
+pvalues_putamen <- c(paste("italic(p) < ", 0.001), paste("italic(p) == ", deparse(format(round(SUL$p.value, digits = 3), nsmall = 3))))
+
+drug_putamen <- ggplot(data = df, aes(x = wholePutamen, y = drug_effect, color = drug)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3) +
+  theme_classic(base_size = 24) +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) +
+  scale_color_manual(name="", values = c("black", "grey69")) +
+  ylab("choice latency DRUG - PBO (sec)") +
+  xlab("Ki putamen") +
+  coord_cartesian(ylim = c(-0.5, 1.2)) +
+  annotate("text", x = c(0.0129,0.0153), y = 1, label = rvalues_putamen, hjust = 0, parse = T, size = 7) +
+  annotate("text", x = c(0.0129,0.0153), y = 0.895, label = pvalues_putamen, hjust = 0, parse = T, size = 7) +
+  geom_hline(yintercept=0, linetype="dotted")
+
+
+MPH <- cor.test(df$wholeCaudate[df$drug=="MPH"], df$drug_effect[df$drug=="MPH"], method = "pearson", use = "pairwise.complete.obs")
+SUL <- cor.test(df$wholeCaudate[df$drug=="SUL"], df$drug_effect[df$drug=="SUL"], method = "pearson", use = "pairwise.complete.obs")
+rvalues_caudate <- c(paste("italic(r) == ", deparse(format(round(as.numeric(MPH$estimate), digits = 2), nsmall = 2))), paste("italic(r) == ", deparse(format(round(as.numeric(SUL$estimate), digits = 2), nsmall = 2))))
+pvalues_caudate <- c(paste("italic(p) == ", deparse(format(round(MPH$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL$p.value, digits = 3), nsmall = 3))))
+
+drug_caudate <- ggplot(data = df, aes(x = wholeCaudate, y = drug_effect, color = drug)) + 
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", size = 2, alpha = 0.3) +
+  theme_classic(base_size = 24) +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) +
+  scale_color_manual(name="", values = c("black", "grey69")) +
+  ylab("choice latency DRUG - PBO (sec)") +
+  xlab("Ki caudate nucleus") +
+  coord_cartesian(ylim = c(-0.5, 1.2)) +
+  annotate("text", x = c(0.010,0.0123), y = 1, label = rvalues_caudate, hjust = 0, parse = T, size = 7) +
+  annotate("text", x = c(0.010,0.0123), y = 0.895, label = pvalues_caudate, hjust = 0, parse = T, size = 7) +
+  geom_hline(yintercept=0, linetype="dotted")
+    
+
+
+
+# also significant without person with largest MPH effect?
+cor.test(df$VS[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], df$drug_effect[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], method = "pearson", use = "pairwise.complete.obs")
+cor.test(df$wholePutamen[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], df$drug_effect[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], method = "pearson", use = "pairwise.complete.obs")
+cor.test(df$wholeCaudate[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], df$drug_effect[df$drug=="MPH" & df$drug_effect!=max(df$drug_effect)], method = "pearson", use = "pairwise.complete.obs")
+
+
+
+# showing drug effect on ratio redo as a function of drug, for each DA level
+
+# first reorder median ki values:
+df$VS_median <- factor(df$VS_median, levels = rev(levels(as.factor(df$VS_median))))
+df$putamen_median <- factor(df$putamen_median, levels = rev(levels(as.factor(df$putamen_median))))
+df$caudate_median <- factor(df$caudate_median, levels = rev(levels(as.factor(df$caudate_median))))
+
+
+
+summ_VS <- summarySE(df, measurevar="drug_effect", groupvars=c("VS_median", "drug"))
+split_VS <- ggplot(data = summ_VS, aes(x = drug, y = drug_effect, fill = VS_median)) +
+  geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+  geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+  geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+  theme_classic(base_size = 24) +
+  scale_fill_manual(name="Ki nucleus accumbens", values = c("black", "white")) +
+  geom_hline(yintercept=0, linetype="dotted")+
+  ylab("choice latency DRUG - PBO (sec)") +
+  xlab("") +
+  coord_cartesian(ylim = c(-0.5, 1.2)) +
+  theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+
+
+
+summ_putamen <- summarySE(df, measurevar="drug_effect", groupvars=c("putamen_median", "drug"))
+split_putamen <- ggplot(data = summ_putamen, aes(x = drug, y = drug_effect, fill = putamen_median)) +
+  geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+  geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+  geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+  theme_classic(base_size = 24) +
+  scale_fill_manual(name="Ki putamen", values = c("black", "white")) +
+  geom_hline(yintercept=0, linetype="dotted")+
+  ylab("choice latency DRUG - PBO (sec)") +
+  xlab("") +
+  coord_cartesian(ylim = c(-0.5, 1.2)) + 
+  theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+
+
+
+summ_caudate <- summarySE(df, measurevar="drug_effect", groupvars=c("caudate_median", "drug"))
+split_caudate <- ggplot(data = summ_caudate, aes(x = drug, y = drug_effect, fill = caudate_median)) +
+  geom_point(data = df, shape = 21, size=2, alpha = 0.6, position=position_jitterdodge(jitter.width = 0.2, jitter.height=0.01, dodge.width=0.6)) +
+  geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci), width=.3, size=1.5, position=position_dodge(0.6)) +
+  geom_point(shape=21,size=4.5, alpha = 1, position=position_dodge(0.6)) +
+  theme_classic(base_size = 24) +
+  scale_fill_manual(name="Ki caudate nucleus", values = c("black", "white")) +
+  geom_hline(yintercept=0, linetype="dotted")+
+  ylab("choice latency DRUG - PBO (sec)") +
+  xlab("") +
+  coord_cartesian(ylim = c(-0.5, 1.2)) +
+  theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) 
+
+
+
+# combine figures into 1 large plot
+combined <- grid.arrange(PBO_VS, drug_VS, split_VS, PBO_putamen, drug_putamen, split_putamen, PBO_caudate, drug_caudate, split_caudate, ncol = 3)
+
+# save
+ggsave(filename = "RTchoice_ROI.png", plot = combined, path = figure_folder,dpi = 1000, width = 48, height = 60, units = "cm")
+
+
+
+
+# MPH_high <- t.test(df$drug_effect[df$VS_median=="high" & df$drug== "MPH"], mu = 0) # first calculate t and p values for drug effect per drug and for high and low DA
+# MPH_low <- t.test(df$drug_effect[df$VS_median=="low" & df$drug== "MPH"], mu = 0)
+# SUL_high <- t.test(df$drug_effect[df$VS_median=="high" & df$drug== "SUL"], mu = 0)
+# SUL_low <- t.test(df$drug_effect[df$VS_median=="low" & df$drug== "SUL"], mu = 0)
+# tvalues_bar_VS <- c(paste("italic(t) == ", deparse(format(round(as.numeric(MPH_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(MPH_high$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_high$statistic), digits = 2), nsmall = 2))))
+# pvalues_bar_VS <- c(paste("italic(p) == ", deparse(format(round(MPH_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(MPH_high$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_high$p.value, digits = 3), nsmall = 3))))
+# 
+# 
+# summ_VS <- summarySE(df, measurevar="drug_effect", groupvars=c("VS_median", "drug"))
+# bar_VS <- ggplot(data = summ_VS, aes(x = drug, y = drug_effect, fill = VS_median)) +
+#   geom_bar(stat="identity", position = position_dodge()) + 
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci),  
+#                 width=.2,                    
+#                 position=position_dodge(.9)) +
+#   theme_classic(base_size = 24) +
+#   ylab("choice latency DRUG - PBO (sec)") +
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.32, 0.5)) +
+#   scale_fill_manual(name="Ki nucleus accumbens", values = c("#404788FF", "#3CBB75FF")) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) +
+#   geom_hline(yintercept=0, linetype="dotted") +
+#   geom_text(aes(x=0.78, y = summ_VS$drug_effect[summ_VS$drug=="MPH" & summ_VS$VS_median=="low"]+summ_VS$ci[summ_VS$drug=="MPH" & summ_VS$VS_median=="low"]+0.1, label = "*"), size = 10) +
+#   geom_text(aes (y = -0.28, label = tvalues_bar_VS, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) +
+#   geom_text(aes (y = -0.32, label = pvalues_bar_VS, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) 
+# 
+# 
+# 
+# MPH_high <- t.test(df$drug_effect[df$putamen_median=="high" & df$drug== "MPH"], mu = 0) # first calculate t and p values for drug effect per drug and for high and low DA
+# MPH_low <- t.test(df$drug_effect[df$putamen_median=="low" & df$drug== "MPH"], mu = 0)
+# SUL_high <- t.test(df$drug_effect[df$putamen_median=="high" & df$drug== "SUL"], mu = 0)
+# SUL_low <- t.test(df$drug_effect[df$putamen_median=="low" & df$drug== "SUL"], mu = 0)
+# tvalues_bar_putamen <- c(paste("italic(t) == ", deparse(format(round(as.numeric(MPH_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(MPH_high$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_high$statistic), digits = 2), nsmall = 2))))
+# pvalues_bar_putamen <- c(paste("italic(p) == ", deparse(format(round(MPH_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(MPH_high$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_high$p.value, digits = 3), nsmall = 3))))
+# 
+# summ_putamen <- summarySE(df, measurevar="drug_effect", groupvars=c("putamen_median", "drug"))
+# bar_putamen <- ggplot(data = summ_putamen, aes(x = drug, y = drug_effect, fill = putamen_median)) +
+#   geom_bar(stat="identity", position = position_dodge()) + 
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci),  
+#                 width=.2,                    
+#                 position=position_dodge(.9)) +
+#   theme_classic(base_size = 24) +
+#   ylab("choice latency DRUG - PBO (sec)") +
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.32, 0.5)) +
+#   scale_fill_manual(name="Ki putamen", values = c("#404788FF", "#3CBB75FF")) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) +
+#   geom_hline(yintercept=0, linetype="dotted")+
+#   geom_text(aes (y = -0.28, label = tvalues_bar_putamen, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) +
+#   geom_text(aes (y = -0.32, label = pvalues_bar_putamen, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) 
+# 
+# 
+# 
+# MPH_high <- t.test(df$drug_effect[df$caudate_median=="high" & df$drug== "MPH"], mu = 0) # first calculate t and p values for drug effect per drug and for high and low DA
+# MPH_low <- t.test(df$drug_effect[df$caudate_median=="low" & df$drug== "MPH"], mu = 0)
+# SUL_high <- t.test(df$drug_effect[df$caudate_median=="high" & df$drug== "SUL"], mu = 0)
+# SUL_low <- t.test(df$drug_effect[df$caudate_median=="low" & df$drug== "SUL"], mu = 0)
+# tvalues_bar_caudate <- c(paste("italic(t) == ", deparse(format(round(as.numeric(MPH_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_low$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(MPH_high$statistic), digits = 2), nsmall = 2))), paste("italic(t) == ", deparse(format(round(as.numeric(SUL_high$statistic), digits = 2), nsmall = 2))))
+# pvalues_bar_caudate <- c(paste("italic(p) == ", deparse(format(round(MPH_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_low$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(MPH_high$p.value, digits = 3), nsmall = 3))), paste("italic(p) == ", deparse(format(round(SUL_high$p.value, digits = 3), nsmall = 3))))
+# 
+# summ_caudate <- summarySE(df, measurevar="drug_effect", groupvars=c("caudate_median", "drug"))
+# bar_caudate <- ggplot(data = summ_caudate, aes(x = drug, y = drug_effect, fill = caudate_median)) +
+#   geom_bar(stat="identity", position = position_dodge()) + 
+#   geom_errorbar(aes(ymin=drug_effect-ci, ymax=drug_effect+ci),  
+#                 width=.2,                    
+#                 position=position_dodge(.9)) +
+#   theme_classic(base_size = 24) +
+#   ylab("choice latency DRUG - PBO (sec)") +
+#   xlab("") +
+#   coord_cartesian(ylim = c(-0.32, 0.5)) +
+#   scale_fill_manual(name="Ki caudate nucleus", values = c("#404788FF", "#3CBB75FF")) + 
+#   theme(legend.position = c(0.49, 0.75), legend.justification=c(0,0), legend.title = element_text(size = 18)) +
+#   geom_hline(yintercept=0, linetype="dotted")+
+#   geom_text(aes (y = -0.28, label = tvalues_bar_caudate, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) +
+#   geom_text(aes (y = -0.32, label = pvalues_bar_caudate, hjust = 0.5), parse = TRUE, size = 5.5, position = position_dodge(0.9)) 
+# 
+
+
+
+
+
+```
+
+
+Session order: different graphs depending on when pp received MPH?
+
+
+```{r, fig.width =8, fig.height = 10}
+
+temp <- allDepVars_wide_drug
+temp$ratioRedo <- temp$ratioRedo_MPH - temp$ratioRedo_PBO
+temp$RTchoice <- temp$RTchoice_MPH - temp$RTchoice_PBO
+
+temp <- temp[complete.cases(temp$wholePutamen),] %>% # remove people without ki measure
+  dplyr::select(wholePutamen, wholeCaudate, VS, ratioRedo, RTchoice, PBO_before_MPH, MPH) 
+temp$PBO_before_MPH <- as.factor(temp$PBO_before_MPH)
+temp$MPH <- as.factor(temp$MPH)
+
+# ratio redo
+corr_coef <- cor.test(temp$wholePutamen[temp$PBO_before_MPH==0], temp$ratioRedo[temp$PBO_before_MPH==0], method = "pearson", use = "pairwise.complete.obs")
+rvalue_MPH_first <- paste("italic(r) == ", round(corr_coef$estimate, digits = 2))
+pvalue_MPH_first <- paste("italic(p) == ", round(corr_coef$p.value, digits = 3))
+corr_coef <- cor.test(temp$wholePutamen[temp$PBO_before_MPH==1], temp$ratioRedo[temp$PBO_before_MPH==1], method = "pearson", use = "pairwise.complete.obs")
+rvalue_PBO_first <- paste("italic(r) == ", round(corr_coef$estimate, digits = 2))
+pvalue_PBO_first <- paste("italic(p) == ", round(corr_coef$p.value, digits = 3))
+
+
+ggplot(data = temp, aes(x = wholePutamen, y = ratioRedo, color = PBO_before_MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  scale_color_manual(name="",
+  breaks=c(0, 1),
+  labels=c("MPH first", "PBO first"),
+  values = c("#55C667FF", "#440154FF")) +
+  ylab("proportion redo choices MPH - PBO") +
+  xlab("Ki putamen") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  geom_text(aes (x=0.0136, y = 0.54, label = rvalue_PBO_first, hjust = 0), parse = TRUE, size = 8, color = "#440154FF") +
+  geom_text(aes (x=0.0136, y = 0.505, label = pvalue_PBO_first, hjust = 0), parse = TRUE, size = 8, color = "#440154FF") +
+  geom_text(aes (x=0.011, y = 0.54, label = rvalue_MPH_first, hjust = 0), parse = TRUE, size = 8, color = "#55C667FF") +
+  geom_text(aes (x=0.011, y = 0.505, label = pvalue_MPH_first, hjust = 0), parse = TRUE, size = 8, color = "#55C667FF") +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+ggsave(filename = "redo_Ki_MPH_effect_order.eps", path = figure_folder,dpi = 1000)
+
+
+# choice latency
+corr_coef <- cor.test(temp$wholePutamen[temp$PBO_before_MPH==0], temp$RTchoice[temp$PBO_before_MPH==0], method = "pearson", use = "pairwise.complete.obs")
+rvalue_MPH_first <- paste("italic(r) == ", round(corr_coef$estimate, digits = 2))
+pvalue_MPH_first <- paste("italic(p) == ", round(corr_coef$p.value, digits = 3))
+corr_coef <- cor.test(temp$wholePutamen[temp$PBO_before_MPH==1], temp$RTchoice[temp$PBO_before_MPH==1], method = "pearson", use = "pairwise.complete.obs")
+rvalue_PBO_first <- paste("italic(r) == ", round(corr_coef$estimate, digits = 2))
+pvalue_PBO_first <- paste("italic(p) == ", round(corr_coef$p.value, digits = 3))
+
+
+ggplot(data = temp, aes(x = wholePutamen, y = RTchoice, color = PBO_before_MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  scale_color_manual(name="",
+  breaks=c(0, 1),
+  labels=c("MPH first", "PBO first"),
+  values = c("#55C667FF", "#440154FF")) +
+  ylab("choice latency MPH - PBO (sec)") +
+  xlab("Ki putamen") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  geom_text(aes (x=0.0136, y = 0.95, label = rvalue_PBO_first, hjust = 0), parse = TRUE, size = 8, color = "#440154FF") +
+  geom_text(aes (x=0.0136, y = 0.87, label = pvalue_PBO_first, hjust = 0), parse = TRUE, size = 8, color = "#440154FF") +
+  geom_text(aes (x=0.011, y = 0.95, label = rvalue_MPH_first, hjust = 0), parse = TRUE, size = 8, color = "#55C667FF") +
+  geom_text(aes (x=0.011, y = 0.87, label = pvalue_MPH_first, hjust = 0), parse = TRUE, size = 8, color = "#55C667FF") +
+  theme(legend.position = c(0.30, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+ggsave(filename = "choicelatency_Ki_MPH_effect_order.eps", path = figure_folder,dpi = 1000)
+
+
+
+
+
+# ====================================================================================================================
+# PER MPH session
+# ====================================================================================================================
+
+temp <- allDepVars_wide_drug[allDepVars_wide_drug$sID!=24,]
+temp$ratioRedo <- temp$ratioRedo_MPH - temp$ratioRedo_PBO
+temp$RTchoice <- temp$RTchoice_MPH - temp$RTchoice_PBO
+
+temp <- temp[complete.cases(temp$wholePutamen),] %>% # remove people without ki measure
+  dplyr::select(wholePutamen, wholeCaudate, VS, ratioRedo, RTchoice, PBO_before_MPH, MPH) 
+temp$PBO_before_MPH <- as.factor(temp$PBO_before_MPH)
+temp$MPH <- as.factor(temp$MPH)
+
+
+# still requires polishing
+
+choice_VS <- ggplot(data = temp, aes(x = VS, y = ratioRedo, color = MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  ylab("proportion redo choices MPH - PBO") +
+  xlab("Ki nucleus accumbens") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  theme(legend.position = c(0.40, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+choice_put <- ggplot(data = temp, aes(x = wholePutamen, y = ratioRedo, color = MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  ylab("proportion redo choices MPH - PBO") +
+  xlab("Ki putamen") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  theme(legend.position = c(0.40, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+choice_cn <- ggplot(data = temp, aes(x = wholeCaudate, y = ratioRedo, color = MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  ylab("proportion redo choices MPH - PBO") +
+  xlab("Ki caudate nucleus") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  theme(legend.position = c(0.40, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+RT_VS <- ggplot(data = temp, aes(x = VS, y = RTchoice, color = MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  ylab("choice latency MPH - PBO (sec)") +
+  xlab("Ki nucleus accumbens") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  theme(legend.position = c(0.40, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+RT_put <- ggplot(data = temp, aes(x = wholePutamen, y = RTchoice, color = MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  ylab("choice latency MPH - PBO (sec)") +
+  xlab("Ki putamen") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  theme(legend.position = c(0.40, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+RT_cn <- ggplot(data = temp, aes(x = wholeCaudate, y = RTchoice, color = MPH)) + 
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", size = 3) +
+  theme_classic(base_size = 28) +
+  ylab("choice latency MPH - PBO (sec)") +
+  xlab("Ki caudate nucleus") +
+  geom_hline(yintercept=0, linetype="dotted") +
+  theme(legend.position = c(0.40, 0.9),
+          legend.direction = "horizontal",
+          legend.background = element_blank(),
+          legend.text = element_text(size=24)) 
+
+
+# combine figures into 1 large plot
+combined <- grid.arrange(choice_VS, choice_put, choice_cn, RT_VS, RT_put, RT_cn, ncol = 3)
+
+# save
+ggsave(filename = "session_order_wo24.jpg", plot = combined, path = figure_folder,dpi = 500, width = 48, height = 40, units = "cm")
+
+
+```
+
+
+

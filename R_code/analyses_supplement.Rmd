@@ -1,0 +1,939 @@
+---
+title: "analyses_supplement"
+author: "Lieke Hofmans"
+date: "6/15/2020"
+output: pdf_document
+---
+
+This script runs the analyses of which the results are presented in the supplement of "Methylphenidate boosts choices of mental labor over leisure depending on striatal dopamine synthesis capacity".  
+
+indep. variables: drug, set size, task type (condition), ki
+N = 46 
+
+
+Load libraries
+```{r}
+# you probably don't need all of these packages, but I just c/p most of them from other scripts I ran recently. 
+library(tidyverse)
+library(afex)
+library(car)
+library(reshape)
+library(ez)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(outliers)
+library(MOTE)
+```
+
+
+set up (calls set up script)
+
+```{r}
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+source("set_up.R")
+
+df_choice <- df_choice[complete.cases(df_choice$wholePutamen),]
+df_choice$condition_IU <- as.factor(df_choice$condition_IU)
+df_choice$set_size <- as.factor(df_choice$set_size)
+df_choice$easy_offer <- as.factor(df_choice$easy_offer)
+
+df_colorwheel <- df_colorwheel[complete.cases(df_colorwheel$wholePutamen),]
+df_colorwheel$condition <- as.factor(df_colorwheel$condition)
+df_colorwheel$set_size <- as.factor(df_colorwheel$set_size)
+
+```
+
+Per session, participants had to complete 288 choice trials, divided over 4 set sizes and 2 task type, which resulted in 36 trials for each of those combinations. 
+On those 36 trials, the offer for redo was fixed at 2 euro. The offer for no redo varied as c(0.10, 0.20, 0.40, 0.60, 0.80, 1.00, 1.20, 1.40, 1.60, 1.80, 2.00, 2.20) (= 12 different values). Each offer was presented 3 times. 
+
+Analyses are run separately for each ROI (putamen, caudate, nucleus accumbens/ventral striatum). dopamine-independent effects are taken from the analysis including putamen ki (Lieke's random choice). 
+
+
+
+Effects on proportion redo choices are reproduced when analysing indifferent points
+
+```{r}
+# IP
+
+# At baseline, participants exhibited a strong preference for not repeating the task, as evidenced by the overall IP being significantly smaller than €2.00
+temp <- allDepVars_wide_drug
+temp <- temp[complete.cases(as.numeric(temp$VS_mc)),]
+ttest <- t.test(temp$IP_PBO, mu = 2)
+d.single.t(ttest$estimate, ttest$null.value, sd(temp$IP_PBO), length(temp$IP_PBO), .05)
+
+# only select IP and Ki columns
+temp <- allDepVars_wide_drug
+temp <- temp %>%
+  dplyr::select(sID, grep("IP", colnames(temp)), wholePutamen_mc, wholeCaudate_mc, VS_mc)
+names(temp) = gsub(pattern = "IP_*", replacement = "", x = names(temp))
+
+# flip from wide to long
+temp <- temp %>%  
+  pivot_longer(c("PBO_I_1", "PBO_I_2",	"PBO_I_3",	"PBO_I_4", "MPH_I_1",	"MPH_I_2",	"MPH_I_3","MPH_I_4","SUL_I_1","SUL_I_2","SUL_I_3","SUL_I_4","PBO_U_1","PBO_U_2","PBO_U_3","PBO_U_4","MPH_U_1","MPH_U_2","MPH_U_3","MPH_U_4","SUL_U_1","SUL_U_2","SUL_U_3","SUL_U_4"), names_to = "condition", values_to = "IP") %>%
+  separate(condition, into = c("drug", "condition_IU", "set_size"))
+temp$wholePutamen_mc <- as.numeric(temp$wholePutamen_mc)
+temp$wholeCaudate_mc <- as.numeric(temp$wholeCaudate_mc)
+temp$VS_mc <- as.numeric(temp$VS_mc)
+temp$drug <- as.factor(temp$drug)
+temp$condition_IU <- as.factor(temp$condition_IU)
+temp$set_size <- as.factor(temp$set_size)
+
+# remove participants without pet data
+temp <- temp[complete.cases(temp$VS_mc),]
+
+
+# putamen
+aov <- aov_car(IP ~ wholePutamen_mc + Error(sID/(set_size*condition_IU*drug)), data = temp, observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["set_size","num Df"], # set_size
+    dfe = summary(aov)[[4]]["set_size","den Df"],
+    ssm = summary(aov)[[4]]["set_size","Sum Sq"],
+    sse = summary(aov)[[4]]["set_size","Error SS"],
+    Fvalue = summary(aov)[[4]]["set_size","F value"],
+    a = .1)[8]
+    
+    eta.partial.SS(dfm = summary(aov)[[4]]["condition_IU","num Df"], # task type
+    dfe = summary(aov)[[4]]["condition_IU","den Df"],
+    ssm = summary(aov)[[4]]["condition_IU","Sum Sq"],
+    sse = summary(aov)[[4]]["condition_IU","Error SS"],
+    Fvalue = summary(aov)[[4]]["condition_IU","F value"],
+    a = .1)[8]
+    
+    eta.partial.SS(dfm = summary(aov)[[4]]["set_size:condition_IU","num Df"], # set size by task type
+    dfe = summary(aov)[[4]]["set_size:condition_IU","den Df"],
+    ssm = summary(aov)[[4]]["set_size:condition_IU","Sum Sq"],
+    sse = summary(aov)[[4]]["set_size:condition_IU","Error SS"],
+    Fvalue = summary(aov)[[4]]["set_size:condition_IU","F value"],
+    a = .1)[8]
+
+    eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+    dfe = summary(aov)[[4]]["drug","den Df"],
+    ssm = summary(aov)[[4]]["drug","Sum Sq"],
+    sse = summary(aov)[[4]]["drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["drug","F value"],
+    a = .1)[8]
+
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+    dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+    a = .1)[8]
+
+    # comparison between MPH and PBO
+    aov <- aov_car(IP ~ wholePutamen_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="SUL",], observed = "wholePutamen_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+        dfe = summary(aov)[[4]]["drug","den Df"],
+        ssm = summary(aov)[[4]]["drug","Sum Sq"],
+        sse = summary(aov)[[4]]["drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["drug","F value"],
+        a = .1)[8]
+    
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+        dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+        a = .1)[8]
+    
+    # comparison between SUL and PBO
+    aov <- aov_car(IP ~ wholePutamen_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="MPH",], observed = "wholePutamen_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+        dfe = summary(aov)[[4]]["drug","den Df"],
+        ssm = summary(aov)[[4]]["drug","Sum Sq"],
+        sse = summary(aov)[[4]]["drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["drug","F value"],
+        a = .1)[8]    
+    
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+        dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+        a = .1)[8]
+    
+        
+    # comparison between MPH and SUL
+    aov <- aov_car(IP ~ wholePutamen_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="PBO",], observed = "wholePutamen_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+        dfe = summary(aov)[[4]]["drug","den Df"],
+        ssm = summary(aov)[[4]]["drug","Sum Sq"],
+        sse = summary(aov)[[4]]["drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["drug","F value"],
+        a = .1)[8]    
+    
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+        dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+        a = .1)[8]
+        
+    # PBO only
+    aov <- aov_car(IP ~ wholePutamen_mc + Error(sID/(set_size*condition_IU)), data = temp[temp$drug=="PBO",], observed = "wholePutamen_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc","num Df"], # drug
+        dfe = summary(aov)[[4]]["wholePutamen_mc","den Df"],
+        ssm = summary(aov)[[4]]["wholePutamen_mc","Sum Sq"],
+        sse = summary(aov)[[4]]["wholePutamen_mc","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholePutamen_mc","F value"],
+        a = .1)[8]
+ 
+        
+# caudate
+aov <- aov_car(IP ~ wholeCaudate_mc + Error(sID/(set_size*condition_IU*drug)), data = temp, observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+    dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+    a = .1)[8]
+
+    # comparison between MPH and PBO
+    aov <- aov_car(IP ~ wholeCaudate_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="SUL",], observed = "wholeCaudate_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+        dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+        a = .1)[8]
+    
+    # comparison between SUL and PBO
+    aov <- aov_car(IP ~ wholeCaudate_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="MPH",], observed = "wholeCaudate_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+        dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+        a = .1)[8]
+    
+        
+    # comparison between MPH and SUL
+    aov <- aov_car(IP ~ wholeCaudate_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="PBO",], observed = "wholeCaudate_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+        dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+        a = .1)[8]
+        
+    # PBO only
+    aov <- aov_car(IP ~ wholeCaudate_mc + Error(sID/(set_size*condition_IU)), data = temp[temp$drug=="PBO",], observed = "wholeCaudate_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc","num Df"], # drug
+        dfe = summary(aov)[[4]]["wholeCaudate_mc","den Df"],
+        ssm = summary(aov)[[4]]["wholeCaudate_mc","Sum Sq"],
+        sse = summary(aov)[[4]]["wholeCaudate_mc","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholeCaudate_mc","F value"],
+        a = .1)[8]
+
+        
+# VS
+aov <- aov_car(IP ~ VS_mc + Error(sID/(set_size*condition_IU*drug)), data = temp, observed = "VS_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+    dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+    a = .1)[8]
+
+    # comparison between MPH and PBO
+    aov <- aov_car(IP ~ VS_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="SUL",], observed = "VS_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+        dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+        a = .1)[8]
+    
+    # comparison between SUL and PBO
+    aov <- aov_car(IP ~ VS_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="MPH",], observed = "VS_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+        dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+        a = .1)[8]
+    
+        
+    # comparison between MPH and SUL
+    aov <- aov_car(IP ~ VS_mc + Error(sID/(set_size*condition_IU*drug)), data = temp[temp$drug!="PBO",], observed = "VS_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+        dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+        a = .1)[8]
+        
+    # PBO only
+    aov <- aov_car(IP ~ VS_mc + Error(sID/(set_size*condition_IU)), data = temp[temp$drug=="PBO",], observed = "VS_mc", factorize = FALSE)
+    summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc","num Df"], # drug
+        dfe = summary(aov)[[4]]["VS_mc","den Df"],
+        ssm = summary(aov)[[4]]["VS_mc","Sum Sq"],
+        sse = summary(aov)[[4]]["VS_mc","Error SS"],
+        Fvalue = summary(aov)[[4]]["VS_mc","F value"],
+        a = .1)[8] 
+```
+
+
+Methylphenidate-induced effect does not reflect choice randomness
+```{r, fig.height=8, fig.width=8}
+
+# slope
+
+# select data and flip dataframe from wide to long
+temp <- allDepVars_wide_drug
+temp <- temp %>%
+  dplyr::select(sID, slope_Total, slope_MPH, slope_PBO, wholePutamen_mc, wholeCaudate_mc, VS_mc)
+names(temp) = gsub(pattern = "slope_*", replacement = "", x = names(temp))
+temp <- temp %>%  
+  pivot_longer(c("MPH", "PBO"), names_to = "drug", values_to = "slope")
+temp$wholePutamen_mc <- as.numeric(temp$wholePutamen_mc)
+temp$wholeCaudate_mc <- as.numeric(temp$wholeCaudate_mc)
+temp$VS_mc <- as.numeric(temp$VS_mc)
+temp$slope <- as.numeric(temp$slope)
+temp$Total <- as.numeric(temp$Total)
+temp$drug <- as.factor(temp$drug)
+
+# remove people with incomplete data
+temp <- temp[complete.cases(temp$slope) & complete.cases(temp$VS_mc),]
+for (jj in unique(temp$sID)){
+  if (sum(temp$sID==jj) < 2){
+    temp <- temp[temp$sID!=jj, ]  
+  }
+}
+
+# any outliers on overall slope?
+max <- mean(as.numeric(temp$Total), na.rm=T) + 3*sd(as.numeric(temp$Total), na.rm=T)
+min <- mean(as.numeric(temp$Total), na.rm=T) - 3*sd(as.numeric(temp$Total), na.rm=T)
+temp <- temp[which(temp$Total < max & temp$Total > min),] # who exceeds threshold; pp 9 + 21
+
+
+
+
+# putamen
+aov <- aov_car(slope ~ wholePutamen_mc + Error(sID/(drug)), data = temp, observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)  
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+    dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+    a = .1)[8]
+    
+    eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+    dfe = summary(aov)[[4]]["drug","den Df"],
+    ssm = summary(aov)[[4]]["drug","Sum Sq"],
+    sse = summary(aov)[[4]]["drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["drug","F value"],
+    a = .1)[8]
+
+# caudate
+aov <- aov_car(slope ~ wholeCaudate_mc + Error(sID/(drug)), data = temp, observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+    dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+    a = .1)[8]
+
+# VS
+aov <- aov_car(slope ~ VS_mc + Error(sID/(drug)), data = temp, observed = "VS_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+    dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+    a = .1)[8]
+
+   
+
+
+```
+
+
+
+
+
+
+Dopamine synthesis capacity-dependent effects cannot be explained by working-memory performance
+
+```{r, fig.height=8, fig.width=8}
+
+# Deviance
+temp <- df_colorwheel
+summ <- summarySE(temp, measurevar="abs_deviance", groupvars=c("sID", "set_size", "condition", "drug", "wholePutamen_mc", "wholeCaudate_mc", "VS_mc"))
+
+
+# putamen
+aov <- aov_car(median ~ wholePutamen_mc + Error(sID/(set_size*condition*drug)), data = summ, observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+    dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+    a = .1)[8]
+    
+    eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+    dfe = summary(aov)[[4]]["drug","den Df"],
+    ssm = summary(aov)[[4]]["drug","Sum Sq"],
+    sse = summary(aov)[[4]]["drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["drug","F value"],
+    a = .1)[8]
+
+# caudate
+aov <- aov_car(median ~ wholeCaudate_mc + Error(sID/(set_size*condition*drug)), data = summ, observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+    dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+    a = .1)[8]
+
+# VS
+aov <- aov_car(median ~ VS_mc + Error(sID/(set_size*condition*drug)), data = summ, observed = "VS_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+    dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+    a = .1)[8]
+
+   
+
+
+
+# RT
+temp <- df_colorwheel
+summ <- summarySE(temp, measurevar="RT", groupvars=c("sID", "set_size", "condition", "drug", "wholePutamen_mc", "wholeCaudate_mc", "VS_mc"))
+
+
+# putamen
+aov <- aov_car(median ~ wholePutamen_mc + Error(sID/(set_size*condition*drug)), data = summ, observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+    dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+    a = .1)[8]
+    
+    eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+    dfe = summary(aov)[[4]]["drug","den Df"],
+    ssm = summary(aov)[[4]]["drug","Sum Sq"],
+    sse = summary(aov)[[4]]["drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["drug","F value"],
+    a = .1)[8]
+
+# caudate
+aov <- aov_car(median ~ wholeCaudate_mc + Error(sID/(set_size*condition*drug)), data = summ, observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+    dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+    a = .1)[8]
+
+# VS
+aov <- aov_car(median ~ VS_mc + Error(sID/(set_size*condition*drug)), data = summ, observed = "VS_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+    dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+    a = .1)[8]
+
+
+
+```
+
+
+
+
+No correlation between MPH-induced effects on performance vs cognitive motivation and choice latency
+```{r, fig.height=8, fig.width=8}
+
+# calculate difference scores
+ratioRedo <- summarySE(df_choice, measurevar="choice_NR", groupvars=c("sID", "drug"))
+ratioRedo <- ratioRedo %>%
+  dplyr::select(sID, drug, choice_NR) %>%
+  spread(drug, choice_NR)
+ratioRedo$MPH_effect <- ratioRedo$MPH - ratioRedo$PBO
+
+RTchoice <- summarySE(df_choice, measurevar="RT", groupvars=c("sID", "drug"))
+RTchoice <- RTchoice %>%
+  dplyr::select(sID, drug, median) %>%
+  spread(drug, median)
+RTchoice$MPH_effect <- RTchoice$MPH - RTchoice$PBO
+
+deviance <- summarySE(df_colorwheel, measurevar="abs_deviance", groupvars=c("sID", "drug"))
+deviance <- deviance %>%
+  dplyr::select(sID, drug, median) %>%
+  spread(drug, median)
+deviance$MPH_effect <- deviance$MPH - deviance$PBO
+
+RT <- summarySE(df_colorwheel, measurevar="RT", groupvars=c("sID", "drug"))
+RT <- RT %>%
+  dplyr::select(sID, drug, median) %>%
+  spread(drug, median)
+RT$MPH_effect <- RT$MPH - RT$PBO
+
+
+
+# MPH - PBO
+corMPH <- cor.test(deviance$MPH_effect, ratioRedo$MPH_effect) 
+print(corMPH, digits = 3)
+print(corMPH$p.value, digits = 3)
+
+corMPH <- cor.test(deviance$MPH_effect, RTchoice$MPH_effect) 
+print(corMPH, digits = 3)
+print(corMPH$p.value, digits = 3)
+
+corMPH <- cor.test(RT$MPH_effect, ratioRedo$MPH_effect) 
+print(corMPH, digits = 3)
+print(corMPH$p.value, digits = 3)
+
+corMPH <- cor.test(RT$MPH_effect, RTchoice$MPH_effect) 
+print(corMPH, digits = 3)
+print(corMPH$p.value, digits = 3)
+
+```
+
+
+
+
+Baseline dopamine synthesis capacity-dependent effects cannot be explained by mood and medical symptoms 
+
+```{r}
+
+# MANOVAs were run in SPSS
+# Here, I calculate the correlations between the MPH effect on ratio redo and the MPH effect on the mood and medical measures (at timepoint 2).
+
+# only select mood and medical symptoms and pivot to long format
+temp <- dplyr::select(medical_mood_phys, c(vID, panasNeg_MPH_1:vasMedical_SUL_3)) 
+temp$VS_mc <- as.numeric(allDepVars_wide_drug$VS_mc)
+temp <- temp[complete.cases(temp$VS_mc),]
+temp <- temp %>%
+  pivot_longer(c(panasNeg_MPH_1:vasMedical_SUL_3), names_to="measure", values_to = "value") %>%
+  separate(measure, into = c("measure", "drug", "timepoint")) %>%
+  pivot_wider(names_from = measure, values_from = value)
+
+temp$drug <- as.factor(temp$drug)
+temp$timepoint <- as.factor(temp$timepoint)
+temp <- temp[temp$timepoint==2 & temp$drug!="SUL",] # only interested at timepoint 2 for PBO and MPH here
+
+MPH_effects <- data.frame(matrix(ncol = 8, nrow = 46)) 
+MPH_effects[1] <- allDepVars_wide_drug$sID[complete.cases(as.numeric(allDepVars_wide_drug$VS_mc))]
+MPH_effects[2] <- (aggregate(panasNeg ~ vID, data=temp, diff) * -1)[2] 
+MPH_effects[3] <- (aggregate(panasPos ~ vID, data=temp, diff) * -1)[2]
+MPH_effects[4] <- (aggregate(vasAlert ~ vID, data=temp, diff) * -1)[2] 
+MPH_effects[5] <- (aggregate(vasCalm ~ vID, data=temp, diff) * -1)[2] 
+MPH_effects[6] <- (aggregate(vasContend ~ vID, data=temp, diff) * -1)[2] 
+MPH_effects[7] <- (aggregate(vasMedical ~ vID, data=temp, diff) * -1)[2] 
+MPH_effects[8] <- allDepVars_wide_drug$ratioRedo_MPH[complete.cases(as.numeric(allDepVars_wide_drug$VS_mc))] - allDepVars_wide_drug$ratioRedo_PBO[complete.cases(as.numeric(allDepVars_wide_drug$VS_mc))]
+names(MPH_effects) <- c("sID", "panasNeg", "panasPos", "vasAlert", "vasCalm", "vasContend", "vasMedical", "ratioRedo")
+
+# run correlations
+cor <- cor.test(MPH_effects$panasNeg, MPH_effects$ratioRedo) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(MPH_effects$panasPos, MPH_effects$ratioRedo) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(MPH_effects$vasAlert, MPH_effects$ratioRedo) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(MPH_effects$vasCalm, MPH_effects$ratioRedo) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(MPH_effects$vasContend, MPH_effects$ratioRedo) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(MPH_effects$vasMedical, MPH_effects$ratioRedo) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+
+# run additional rmANOVA including MPH effect on positive affect and alertness as covariates
+
+temp <- df_choice
+# add MPH effects on pos and alert to temp 
+for (jj in MPH_effects$sID){
+  temp[temp[,"sID"]==jj,"MPH_effect_panasPos_mc"] <- MPH_effects[MPH_effects[,"sID"]==jj,"panasPos"] - mean(MPH_effects$panasPos)
+  temp[temp[,"sID"]==jj,"MPH_effect_vasAlert_mc"] <- MPH_effects[MPH_effects[,"sID"]==jj,"vasAlert"] - mean(MPH_effects$vasAlert)
+} 
+
+summ <- summarySE(temp, measurevar="choice_NR", groupvars=c("sID", "set_size", "condition_IU", "drug", "wholePutamen_mc", "wholeCaudate_mc", "VS_mc", "MPH_effect_panasPos_mc", "MPH_effect_vasAlert_mc"))
+
+
+# POSITIVE AFFECT
+# putamen
+aov <- aov_car(choice_NR ~ wholePutamen_mc + MPH_effect_panasPos_mc + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+        dfe = summary(aov)[[4]]["drug","den Df"],
+        ssm = summary(aov)[[4]]["drug","Sum Sq"],
+        sse = summary(aov)[[4]]["drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["drug","F value"],
+        a = .1)[8]
+
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+        dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+        a = .1)[8]
+
+# caudate
+aov <- aov_car(choice_NR ~ wholeCaudate_mc + MPH_effect_panasPos_mc + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+        dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+        a = .1)[8]
+
+# VS
+aov <- aov_car(choice_NR ~ VS_mc + MPH_effect_panasPos_mc + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "VS_mc", factorize = FALSE)
+summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+        dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+        a = .1)[8]
+
+
+# ALERTNESS
+# putamen
+aov <- aov_car(choice_NR ~ wholePutamen_mc + MPH_effect_vasAlert_mc + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+        dfe = summary(aov)[[4]]["drug","den Df"],
+        ssm = summary(aov)[[4]]["drug","Sum Sq"],
+        sse = summary(aov)[[4]]["drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["drug","F value"],
+        a = .1)[8]
+
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+        dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+        a = .1)[8]
+
+# caudate
+aov <- aov_car(choice_NR ~ wholeCaudate_mc + MPH_effect_vasAlert_mc + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+        dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+        a = .1)[8]
+
+# VS
+aov <- aov_car(choice_NR ~ VS_mc + MPH_effect_vasAlert_mc + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "VS_mc", factorize = FALSE)
+summary(aov)
+        # partial eta sq + 90%CI
+        eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+        dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+        ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+        sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+        Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+        a = .1)[8]
+
+
+```
+
+
+
+
+Controlling for session order
+
+A first ANOVA confirmed that session-day-number (1, 2 or 3) did not differ between the three drugs
+
+```{r}
+
+# only select session numbers and Ki
+temp <- allDepVars_wide_drug
+temp <- temp %>%
+  dplyr::select(MPH, SUL, PBO, VS_mc) %>%
+  pivot_longer(c("PBO", "MPH", "SUL"), names_to = "drug", values_to = "day")
+# remove participants without pet data
+temp <- temp[complete.cases(as.numeric(temp$VS_mc)),]
+# add row number
+temp$row <- c(1:length(temp$drug))
+
+aov <- aov_car(day ~ drug + Error(row), data = temp, factorize = T)
+aov$aov
+    # (partial) eta sq + 90%CI
+    eta.partial.SS(dfm = 2, 
+    dfe = 135,
+    ssm = 1.17,
+    sse = 90.83,
+    Fvalue = 0.42,
+    a = .1)[8]
+
+
+
+```
+
+
+Unexpectedly, a Spearman’s rank correlation indeed revealed that dopamine synthesis capacity was negatively correlated with the session on which participants received methylphenidate (Table S8). 
+
+```{r}
+
+# only select session numbers and Ki
+temp <- allDepVars_wide_drug
+temp <- temp %>%
+  dplyr::select(MPH, SUL, PBO, VS, wholePutamen, wholeCaudate) 
+# remove participants without pet data
+temp <- temp[complete.cases(as.numeric(temp$VS)),]
+temp$VS <- as.numeric(temp$VS)
+temp$wholePutamen <- as.numeric(temp$wholePutamen)
+temp$wholeCaudate <- as.numeric(temp$wholeCaudate)
+
+# Spearmans rank correlation between ki and session number
+
+# putamen
+cor <- cor.test(temp$wholePutamen, temp$MPH, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$wholePutamen, temp$SUL, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$wholePutamen, temp$PBO, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+# caudate
+cor <- cor.test(temp$wholeCaudate, temp$MPH, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$wholeCaudate, temp$SUL, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$wholeCaudate, temp$PBO, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+# VS
+cor <- cor.test(temp$VS, temp$MPH, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$VS, temp$SUL, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$VS, temp$PBO, method = "spearman") 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+
+```
+
+
+Dopamine synthesis capacity-dependent effects are smaller, but still qualitatively present when controlling for session order
+
+```{r}
+
+# ratio redo
+
+temp <- df_choice
+summ <- summarySE(temp, measurevar="choice_NR", groupvars=c("sID", "set_size", "condition_IU", "drug", "wholePutamen_mc", "wholeCaudate_mc", "VS_mc", "MPH"))
+summ$MPH <- as.factor(summ$MPH)
+
+# putamen
+# comparison between MPH and PBO
+aov <- aov_car(choice_NR ~ wholePutamen_mc + MPH + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov) 
+
+
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["drug","num Df"], # drug
+    dfe = summary(aov)[[4]]["drug","den Df"],
+    ssm = summary(aov)[[4]]["drug","Sum Sq"],
+    sse = summary(aov)[[4]]["drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["drug","F value"],
+    a = .1)[8]
+
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+    dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+    a = .1)[8]
+
+# caudate
+# comparison between MPH and PBO
+aov <- aov_car(choice_NR ~ wholeCaudate_mc + MPH + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+    dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+    a = .1)[8]
+
+# VS
+# comparison between MPH and PBO
+aov <- aov_car(choice_NR ~ VS_mc + MPH + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "VS_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+    dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+    a = .1)[8]
+
+   
+    
+
+# choice latency
+
+temp <- df_choice
+summ <- summarySE(temp, measurevar="RT", groupvars=c("sID", "set_size", "condition_IU", "drug", "wholePutamen_mc", "wholeCaudate_mc", "VS_mc", "MPH"))
+summ$MPH <- as.factor(summ$MPH)
+
+# putamen
+# comparison between MPH and PBO
+aov <- aov_car(median ~ wholePutamen_mc + MPH + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholePutamen_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholePutamen_mc:drug","num Df"], # wholePutamen_mc:drug
+    dfe = summary(aov)[[4]]["wholePutamen_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholePutamen_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholePutamen_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholePutamen_mc:drug","F value"],
+    a = .1)[8]
+
+# caudate
+# comparison between MPH and PBO
+aov <- aov_car(median ~ wholeCaudate_mc + MPH + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "wholeCaudate_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["wholeCaudate_mc:drug","num Df"], # wholeCaudate_mc:drug
+    dfe = summary(aov)[[4]]["wholeCaudate_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["wholeCaudate_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["wholeCaudate_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["wholeCaudate_mc:drug","F value"],
+    a = .1)[8]
+
+# VS
+# comparison between MPH and PBO
+aov <- aov_car(median ~ VS_mc + MPH + Error(sID/(set_size*condition_IU*drug)), data = summ[summ$drug!="SUL",], observed = "VS_mc", factorize = FALSE)
+summary(aov)
+    # partial eta sq + 90%CI
+    eta.partial.SS(dfm = summary(aov)[[4]]["VS_mc:drug","num Df"], # VS_mc:drug
+    dfe = summary(aov)[[4]]["VS_mc:drug","den Df"],
+    ssm = summary(aov)[[4]]["VS_mc:drug","Sum Sq"],
+    sse = summary(aov)[[4]]["VS_mc:drug","Error SS"],
+    Fvalue = summary(aov)[[4]]["VS_mc:drug","F value"],
+    a = .1)[8]
+    
+   
+
+```
+
+
+No correlation between dopamine synthesis capacity and time after methylphenidate administration
+
+```{r}
+
+# only select days between PET scan and the MPH session and Ki
+temp <- allDepVars_wide_drug
+temp <- temp %>%
+  dplyr::select(MPH_PET, VS, wholePutamen, wholeCaudate) 
+# remove participants without pet data
+temp <- temp[complete.cases(as.numeric(temp$VS)),]
+temp$VS <- as.numeric(temp$VS)
+temp$wholePutamen <- as.numeric(temp$wholePutamen)
+temp$wholeCaudate <- as.numeric(temp$wholeCaudate)
+temp$MPH_PET <- as.numeric(temp$MPH_PET)
+
+# Pearsons correlation between ki and MPH_PET
+cor <- cor.test(temp$wholePutamen, temp$MPH_PET) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$wholeCaudate, temp$MPH_PET) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+cor <- cor.test(temp$VS, temp$MPH_PET) 
+print(cor, digits = 3)
+print(cor$p.value, digits = 3)
+
+
+```
+
+
+
+ANALYZED IN SPSS:
+Baseline dDopamine synthesis capacity-dependent effects cannot be explained by mood and medical symptoms: MANOVA 
+Drug effects on physiological measures: MANOVA
+
+
